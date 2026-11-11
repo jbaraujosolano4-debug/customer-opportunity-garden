@@ -28,3 +28,10 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+
+- CRM data is read and written only through server functions in `src/lib/crm/crm.functions.ts`, which proxy the user's Google Apps Script web app at the `APPS_SCRIPT_URL` secret — the Google Sheet stays the source of truth and the URL never reaches the browser.
+- Without `APPS_SCRIPT_URL` the app runs in demo mode with the sheet's sample rows and edits stay in memory — so the UI is usable before the sheet is connected.
+- The Apps Script source shown on the Conexión page (`src/lib/crm/apps-script-code.ts`) maps columns by header name and the field keys must match `Opportunity` in `src/lib/crm/model.ts` — change both together.
+- Query data is hydrated from SSR via `setupRouterSsrQueryIntegration`; UI in the root shell that depends on query data renders only after hydration to avoid mismatches.

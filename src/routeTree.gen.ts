@@ -10,33 +10,80 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ConexionRouteImport } from './routes/conexion'
+import { Route as OportunidadesRouteImport } from './routes/oportunidades'
+import { Route as PipelineRouteImport } from './routes/pipeline'
+import { Route as SeguimientosRouteImport } from './routes/seguimientos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConexionRoute = ConexionRouteImport.update({
+  id: '/conexion',
+  path: '/conexion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OportunidadesRoute = OportunidadesRouteImport.update({
+  id: '/oportunidades',
+  path: '/oportunidades',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PipelineRoute = PipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SeguimientosRoute = SeguimientosRouteImport.update({
+  id: '/seguimientos',
+  path: '/seguimientos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/conexion': typeof ConexionRoute
+  '/oportunidades': typeof OportunidadesRoute
+  '/pipeline': typeof PipelineRoute
+  '/seguimientos': typeof SeguimientosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/conexion': typeof ConexionRoute
+  '/oportunidades': typeof OportunidadesRoute
+  '/pipeline': typeof PipelineRoute
+  '/seguimientos': typeof SeguimientosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/conexion': typeof ConexionRoute
+  '/oportunidades': typeof OportunidadesRoute
+  '/pipeline': typeof PipelineRoute
+  '/seguimientos': typeof SeguimientosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    '/' | '/conexion' | '/oportunidades' | '/pipeline' | '/seguimientos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/conexion' | '/oportunidades' | '/pipeline' | '/seguimientos'
+  id:
+    | '__root__'
+    | '/'
+    | '/conexion'
+    | '/oportunidades'
+    | '/pipeline'
+    | '/seguimientos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConexionRoute: typeof ConexionRoute
+  OportunidadesRoute: typeof OportunidadesRoute
+  PipelineRoute: typeof PipelineRoute
+  SeguimientosRoute: typeof SeguimientosRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +95,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/conexion': {
+      id: '/conexion'
+      path: '/conexion'
+      fullPath: '/conexion'
+      preLoaderRoute: typeof ConexionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oportunidades': {
+      id: '/oportunidades'
+      path: '/oportunidades'
+      fullPath: '/oportunidades'
+      preLoaderRoute: typeof OportunidadesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pipeline': {
+      id: '/pipeline'
+      path: '/pipeline'
+      fullPath: '/pipeline'
+      preLoaderRoute: typeof PipelineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/seguimientos': {
+      id: '/seguimientos'
+      path: '/seguimientos'
+      fullPath: '/seguimientos'
+      preLoaderRoute: typeof SeguimientosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConexionRoute: ConexionRoute,
+  OportunidadesRoute: OportunidadesRoute,
+  PipelineRoute: PipelineRoute,
+  SeguimientosRoute: SeguimientosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
