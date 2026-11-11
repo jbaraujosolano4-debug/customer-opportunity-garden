@@ -166,3 +166,22 @@
 @utility animate-rise {
   animation: rise-in 0.35s ease-out both;
 }
+
+/* Informe: print only the report sheet, on A4, keeping brand colors. */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
+  html,
+  body {
+    background: var(--color-card);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .report-sheet thead {
+    display: table-header-group;
+  }
+}
