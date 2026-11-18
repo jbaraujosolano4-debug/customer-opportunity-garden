@@ -1,0 +1,18 @@
+{
+  "name": "Customer Opportunity Garden",
+  "short_name": "CRM Comercial",
+  "description": "CRM comercial conectado a Google Sheets para gestión de oportunidades",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#10b981",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

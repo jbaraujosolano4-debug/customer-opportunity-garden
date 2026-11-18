@@ -11,9 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ConexionRouteImport } from './routes/conexion'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as OportunidadesRouteImport } from './routes/oportunidades'
 import { Route as PipelineRouteImport } from './routes/pipeline'
 import { Route as SeguimientosRouteImport } from './routes/seguimientos'
+import { Route as UsuariosRouteImport } from './routes/usuarios'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,6 +25,11 @@ const IndexRoute = IndexRouteImport.update({
 const ConexionRoute = ConexionRouteImport.update({
   id: '/conexion',
   path: '/conexion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OportunidadesRoute = OportunidadesRouteImport.update({
@@ -40,50 +47,78 @@ const SeguimientosRoute = SeguimientosRouteImport.update({
   path: '/seguimientos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UsuariosRoute = UsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/conexion': typeof ConexionRoute
+  '/login': typeof LoginRoute
   '/oportunidades': typeof OportunidadesRoute
   '/pipeline': typeof PipelineRoute
   '/seguimientos': typeof SeguimientosRoute
+  '/usuarios': typeof UsuariosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/conexion': typeof ConexionRoute
+  '/login': typeof LoginRoute
   '/oportunidades': typeof OportunidadesRoute
   '/pipeline': typeof PipelineRoute
   '/seguimientos': typeof SeguimientosRoute
+  '/usuarios': typeof UsuariosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/conexion': typeof ConexionRoute
+  '/login': typeof LoginRoute
   '/oportunidades': typeof OportunidadesRoute
   '/pipeline': typeof PipelineRoute
   '/seguimientos': typeof SeguimientosRoute
+  '/usuarios': typeof UsuariosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/conexion' | '/oportunidades' | '/pipeline' | '/seguimientos'
+    | '/'
+    | '/conexion'
+    | '/login'
+    | '/oportunidades'
+    | '/pipeline'
+    | '/seguimientos'
+    | '/usuarios'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/conexion' | '/oportunidades' | '/pipeline' | '/seguimientos'
+  to:
+    | '/'
+    | '/conexion'
+    | '/login'
+    | '/oportunidades'
+    | '/pipeline'
+    | '/seguimientos'
+    | '/usuarios'
   id:
     | '__root__'
     | '/'
     | '/conexion'
+    | '/login'
     | '/oportunidades'
     | '/pipeline'
     | '/seguimientos'
+    | '/usuarios'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ConexionRoute: typeof ConexionRoute
+  LoginRoute: typeof LoginRoute
   OportunidadesRoute: typeof OportunidadesRoute
   PipelineRoute: typeof PipelineRoute
   SeguimientosRoute: typeof SeguimientosRoute
+  UsuariosRoute: typeof UsuariosRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -100,6 +135,13 @@ declare module '@tanstack/react-router' {
       path: '/conexion'
       fullPath: '/conexion'
       preLoaderRoute: typeof ConexionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/oportunidades': {
@@ -123,15 +165,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SeguimientosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/usuarios': {
+      id: '/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof UsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ConexionRoute: ConexionRoute,
+  LoginRoute: LoginRoute,
   OportunidadesRoute: OportunidadesRoute,
   PipelineRoute: PipelineRoute,
   SeguimientosRoute: SeguimientosRoute,
+  UsuariosRoute: UsuariosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

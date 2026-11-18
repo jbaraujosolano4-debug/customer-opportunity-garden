@@ -27,9 +27,10 @@ const opportunitySchema = z.object({
   notas: text(5000),
 });
 
+import { getScriptUrl } from "./script-url";
+
 function scriptUrl(): string | undefined {
-  const url = process.env["APPS_SCRIPT_URL"]?.trim();
-  return url ? url : undefined;
+  return getScriptUrl();
 }
 
 function message(error: unknown): string {
