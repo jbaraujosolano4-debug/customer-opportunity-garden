@@ -1,7 +1,8 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAuth } from "@/components/crm/auth-context";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -36,13 +37,26 @@ type Props = {
 };
 
 export function OpportunityDialog({ open, onOpenChange, record, preset, records }: Props) {
+  const { user, isAdmin } = useAuth();
   const [form, setForm] = useState<OpportunityInput>(() => ({
     ...(record ?? emptyOpportunity(todayISO())),
+    asignado: record?.asignado || (!isAdmin && user ? user.nombre : ""),
     ...preset,
   }));
   const [confirmDelete, setConfirmDelete] = useState(false);
   const save = useSaveOpportunity();
   const remove = useDeleteOpportunity();
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        ...(record ?? emptyOpportunity(todayISO())),
+        asignado: record?.asignado || (!isAdmin && user ? user.nombre : ""),
+        ...preset,
+      });
+      setConfirmDelete(false);
+    }
+  }, [open, record, preset, isAdmin, user]);
 
   const suggestions = useMemo(
     () => ({
@@ -73,7 +87,12 @@ export function OpportunityDialog({ open, onOpenChange, record, preset, records 
       return;
     }
     try {
-      const res = await save.mutateAsync({ ...form, cliente: form.cliente.trim() });
+      const finalAsignado = !isAdmin && user ? user.nombre : form.asignado.trim();
+      const res = await save.mutateAsync({
+        ...form,
+        cliente: form.cliente.trim(),
+        asignado: finalAsignado,
+      });
       toast.success(record ? "Oportunidad actualizada" : "Oportunidad creada", {
         description: res.mode === "demo" ? "Modo demostración: no se guardó en la hoja." : undefined,
       });
@@ -143,7 +162,20 @@ export function OpportunityDialog({ open, onOpenChange, record, preset, records 
               </Select>
             </Field>
             <Field label="Asignado a">
-              <SuggestInput id="asignado" value={form.asignado} onChange={(v) => set("asignado", v)} options={suggestions.asignado} placeholder="Asesor responsable" />
+              {isAdmin ? (
+                <SuggestInput
+                  id="asignado"
+                  value={form.asignado}
+                  onChange={(v) => set("asignado", v)}
+                  options={suggestions.asignado}
+                  placeholder="Asesor responsable"
+                />
+              ) : (
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted/50 px-3 py-2 text-sm text-foreground">
+                  <span className="font-semibold">{user?.nombre || "Tú"}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">(Tu perfil)</span>
+                </div>
+              )}
             </Field>
             <Field label="Monto (COP)" hint={form.monto ? formatCOP(form.monto) : undefined}>
               <Input

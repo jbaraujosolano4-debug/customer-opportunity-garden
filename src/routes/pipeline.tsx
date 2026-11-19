@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/crm/PageHeader";
 import { useCrmDialog } from "@/components/crm/crm-dialog-context";
 import { cn } from "@/lib/utils";
 import { TONE_CLASSES, formatCOP, formatCompactCOP, pretty, stageInfo, stagesFor, todayISO } from "@/lib/crm/model";
-import { opportunitiesQuery, useSaveOpportunity } from "@/lib/crm/queries";
+import { opportunitiesQuery, useFilteredOpportunities, useSaveOpportunity } from "@/lib/crm/queries";
 
 export const Route = createFileRoute("/pipeline")({
   head: () => ({
@@ -28,13 +28,12 @@ export const Route = createFileRoute("/pipeline")({
 });
 
 function PipelinePage() {
-  const { data } = useSuspenseQuery(opportunitiesQuery);
+  const { records, mode, error, isAdmin, user } = useFilteredOpportunities();
   const { openNew, openEdit } = useCrmDialog();
   const save = useSaveOpportunity();
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<string | null>(null);
   const today = todayISO();
-  const records = data.records;
   const stages = stagesFor(records);
 
   const onDrop = async (e: DragEvent, stageValue: string) => {
@@ -55,7 +54,7 @@ function PipelinePage() {
   return (
     <div className="space-y-5 animate-rise">
       <PageHeader title="Pipeline" subtitle="Arrastra una tarjeta para cambiar su etapa. En el celular, tócala para editarla." />
-      <DataNotice data={data} />
+      <DataNotice data={{ mode, records, error }} />
 
       <div className="-mx-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6">
         <div className="flex min-w-max gap-3">

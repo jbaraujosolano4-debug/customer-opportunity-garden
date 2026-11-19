@@ -22,7 +22,7 @@ import {
   uniqueValues,
   type Opportunity,
 } from "@/lib/crm/model";
-import { opportunitiesQuery } from "@/lib/crm/queries";
+import { opportunitiesQuery, useFilteredOpportunities } from "@/lib/crm/queries";
 
 export const Route = createFileRoute("/oportunidades")({
   head: () => ({
@@ -43,9 +43,8 @@ const ALL = "__all";
 type SortKey = "id" | "cliente" | "monto" | "fechaCreacion" | "proximoContacto";
 
 function OpportunitiesPage() {
-  const { data } = useSuspenseQuery(opportunitiesQuery);
+  const { records, mode, error, isAdmin } = useFilteredOpportunities();
   const { openNew, openEdit } = useCrmDialog();
-  const records = data.records;
   const today = todayISO();
 
   const [q, setQ] = useState("");
@@ -109,7 +108,7 @@ function OpportunitiesPage() {
           </>
         }
       />
-      <DataNotice data={data} />
+      <DataNotice data={{ mode, records, error }} />
 
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
         <div className="relative flex-1">

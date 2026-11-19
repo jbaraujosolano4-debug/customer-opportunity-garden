@@ -21,7 +21,7 @@ import {
   todayISO,
   type Opportunity,
 } from "@/lib/crm/model";
-import { opportunitiesQuery } from "@/lib/crm/queries";
+import { opportunitiesQuery, useFilteredOpportunities } from "@/lib/crm/queries";
 
 export const Route = createFileRoute("/seguimientos")({
   head: () => ({
@@ -39,11 +39,8 @@ export const Route = createFileRoute("/seguimientos")({
 });
 
 function FollowUpsPage() {
-  const { data } = useSuspenseQuery(opportunitiesQuery);
+  const { records, mode, error, isAdmin, user } = useFilteredOpportunities();
   const today = todayISO();
-  const weekEnd = addDays(today, 7);
-  const byDate = (a: Opportunity, b: Opportunity) => a.proximoContacto.localeCompare(b.proximoContacto);
-  const records = data.records;
 
   const overdue = records.filter((r) => followUpStatus(r.proximoContacto, today) === "overdue").sort(byDate);
   const dueToday = records.filter((r) => followUpStatus(r.proximoContacto, today) === "today");
@@ -57,7 +54,7 @@ function FollowUpsPage() {
         title="Seguimientos"
         subtitle={`${overdue.length} vencidos · ${dueToday.length} para hoy · ${thisWeek.length} esta semana`}
       />
-      <DataNotice data={data} />
+      <DataNotice data={{ mode, records, error }} />
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Group title="Vencidos" tone="alert" items={overdue} today={today} empty="Nada vencido. ¡Bien!" />

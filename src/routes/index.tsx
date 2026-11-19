@@ -1,7 +1,6 @@
+import { useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { AlertCircle, ArrowUpRight, Briefcase, CircleDollarSign, Trophy } from "lucide-react";
-import type { ReactNode } from "react";
+import { AlertCircle, ArrowUpRight, Briefcase, CircleDollarSign, Shield, Trophy, User } from "lucide-react";
 
 import { DataNotice } from "@/components/crm/DataNotice";
 import { FollowUpChip } from "@/components/crm/FollowUpChip";
@@ -19,8 +18,9 @@ import {
   stageInfo,
   stagesFor,
   todayISO,
+  uniqueValues,
 } from "@/lib/crm/model";
-import { opportunitiesQuery } from "@/lib/crm/queries";
+import { opportunitiesQuery, useFilteredOpportunities } from "@/lib/crm/queries";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,9 +38,9 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
-  const { data } = useSuspenseQuery(opportunitiesQuery);
+  const [selectedAdvisor, setSelectedAdvisor] = useState("__all");
+  const { records, allRecords, mode, error, isAdmin, user } = useFilteredOpportunities(selectedAdvisor);
   const { openEdit } = useCrmDialog();
-  const records = data.records;
   const today = todayISO();
 
   const total = records.reduce((s, r) => s + r.monto, 0);
@@ -70,7 +70,28 @@ function Dashboard() {
   };
   const byCategory = group((r) => r.categoria || r.producto);
   const maxCategory = Math.max(1, ...byCategory.map((c) => c.value));
-  const byAdvisor = group((r) => r.asignado);
+
+  // Para el admin: desglose consolidado de todos los asesores
+  // Para el asesor: solo su propio perfil
+  const byAdvisor = isAdmin
+    ? (() => {
+        const map = new Map<string, { label: string; count: number; value: number }>();
+        for (const r of allRecords) {
+          const label = pretty(r.asignado) || "Sin asignar";
+          const g = map.get(label) ?? { label, count: 0, value: 0 };
+          g.count += 1;
+          g.value += r.monto;
+          map.set(label, g);
+        }
+        return [...map.values()].sort((a, b) => b.value - a.value);
+      })()
+    : [
+        {
+          label: user?.nombre || "Tú",
+          count: records.length,
+          value: total,
+        },
+      ];
 
   const upcoming = records
     .filter((r) => r.proximoContacto)
@@ -78,15 +99,86 @@ function Dashboard() {
     .slice(0, 6);
   const recent = [...records].sort((a, b) => b.fechaCreacion.localeCompare(a.fechaCreacion)).slice(0, 5);
 
+  const advisorList = uniqueValues(allRecords, "asignado");
+
   return (
     <div className="space-y-6 animate-rise">
-      <PageHeader title="Resumen comercial" subtitle={formatLongToday(today)} />
-      <DataNotice data={data} />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <PageHeader
+          title="Resumen comercial"
+          subtitle={
+            isAdmin
+              ? `${formatLongToday(today)} · Vista Consolidada General`
+              : `${formatLongToday(today)} · Cartera personal: ${user?.nombre || "Asesor"}`
+          }
+        />
+        <div className="flex items-center gap-2">
+          {isAdmin ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-purple-500/20 bg-purple-500/10 px-3 py-1 text-xs font-semibold text-purple-600 dark:text-purple-400">
+              <Shield className="size-3.5" /> Consolidado Administrativo
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full border bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+              <User className="size-3.5" /> Mi Cartera
+            </span>
+          )}
+        </div>
+      </div>
 
+      <DataNotice data={{ mode, records, error }} />
+
+      {/* Selector de filtros solo para el Administrador */}
+      {isAdmin && advisorList.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          <span className="font-semibold text-muted-foreground whitespace-nowrap pr-1">Filtrar vista:</span>
+          <button
+            onClick={() => setSelectedAdvisor("__all")}
+            className={cn(
+              "rounded-lg px-3 py-1 font-medium transition-colors",
+              selectedAdvisor === "__all"
+                ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                : "bg-muted text-muted-foreground hover:bg-muted/80",
+            )}
+          >
+            Consolidado ({allRecords.length})
+          </button>
+          {advisorList.map((adv) => (
+            <button
+              key={adv}
+              onClick={() => setSelectedAdvisor(adv)}
+              className={cn(
+                "rounded-lg px-3 py-1 font-medium transition-colors whitespace-nowrap",
+                selectedAdvisor === adv
+                  ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80",
+              )}
+            >
+              {adv} ({allRecords.filter((r) => r.asignado === adv).length})
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Tarjetas de KPIs principales */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-        <Kpi icon={<CircleDollarSign />} label="Valor total" value={formatCompactCOP(total)} detail={`${records.length} oportunidades`} />
-        <Kpi icon={<Briefcase />} label="En gestión" value={formatCompactCOP(openValue)} detail={`${open.length} abiertas`} />
-        <Kpi icon={<Trophy />} label="Cerradas" value={formatCompactCOP(closedValue)} detail={`${closed.length} negocios`} />
+        <Kpi
+          icon={<CircleDollarSign />}
+          label="Valor total"
+          value={formatCompactCOP(total)}
+          detail={`${records.length} oportunidades`}
+        />
+        <Kpi
+          icon={<Briefcase />}
+          label="En gestión"
+          value={formatCompactCOP(openValue)}
+          detail={`${open.length} abiertas`}
+        />
+        <Kpi
+          icon={<Trophy />}
+          label="Cerradas"
+          value={formatCompactCOP(closedValue)}
+          detail={`${closed.length} negocios`}
+        />
         <Kpi
           icon={<AlertCircle />}
           label="Seguimientos"
@@ -98,31 +190,35 @@ function Dashboard() {
 
       <div className="grid gap-4 lg:grid-cols-5">
         <Panel title="Valor por etapa" className="lg:col-span-3" action={<PanelLink to="/pipeline">Ver pipeline</PanelLink>}>
-          <ul className="space-y-3.5">
-            {byStage.map(({ stage, count, value }) => (
-              <li key={stage.value}>
-                <div className="mb-1.5 flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2 font-medium">
-                    <span className={cn("size-2 rounded-full", TONE_CLASSES[stage.tone].dot)} />
-                    {stage.label}
-                    <span className="text-xs font-normal text-muted-foreground">{count}</span>
-                  </span>
-                  <span className="tabular font-semibold">{formatCOP(value)}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                  <div
-                    className={cn("h-full rounded-full transition-all", TONE_CLASSES[stage.tone].bar)}
-                    style={{ width: `${(value / maxStage) * 100}%` }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
+          {records.length === 0 ? (
+            <Empty>Aún no tienes oportunidades registradas en ninguna etapa.</Empty>
+          ) : (
+            <ul className="space-y-3.5">
+              {byStage.map(({ stage, count, value }) => (
+                <li key={stage.value}>
+                  <div className="mb-1.5 flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2 font-medium">
+                      <span className={cn("size-2 rounded-full", TONE_CLASSES[stage.tone].dot)} />
+                      {stage.label}
+                      <span className="text-xs font-normal text-muted-foreground">{count}</span>
+                    </span>
+                    <span className="tabular font-semibold">{formatCOP(value)}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className={cn("h-full rounded-full transition-all", TONE_CLASSES[stage.tone].bar)}
+                      style={{ width: `${(value / maxStage) * 100}%` }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </Panel>
 
         <Panel title="Por categoría" className="lg:col-span-2">
           {byCategory.length === 0 ? (
-            <Empty>Aún no hay oportunidades.</Empty>
+            <Empty>Aún no hay oportunidades por categoría.</Empty>
           ) : (
             <ul className="space-y-3">
               {byCategory.slice(0, 7).map((c) => (
@@ -144,7 +240,7 @@ function Dashboard() {
       <div className="grid gap-4 lg:grid-cols-5">
         <Panel title="Próximos seguimientos" className="lg:col-span-3" action={<PanelLink to="/seguimientos">Ver todos</PanelLink>}>
           {upcoming.length === 0 ? (
-            <Empty>No hay seguimientos agendados. Agrega una fecha de “Próximo contacto” a tus oportunidades.</Empty>
+            <Empty>No hay seguimientos agendados para tus clientes.</Empty>
           ) : (
             <ul className="-mx-2 divide-y">
               {upcoming.map((r) => (
@@ -164,9 +260,9 @@ function Dashboard() {
           )}
         </Panel>
 
-        <Panel title="Por asesor" className="lg:col-span-2">
+        <Panel title={isAdmin ? "Consolidado por asesor" : "Mi perfil"} className="lg:col-span-2">
           {byAdvisor.length === 0 ? (
-            <Empty>Sin asesores asignados.</Empty>
+            <Empty>Sin asesores registrados.</Empty>
           ) : (
             <ul className="space-y-3">
               {byAdvisor.map((a) => (
@@ -187,21 +283,27 @@ function Dashboard() {
       </div>
 
       <Panel title="Creadas recientemente" action={<PanelLink to="/oportunidades">Ver todas</PanelLink>}>
-        <ul className="-mx-2 divide-y">
-          {recent.map((r) => (
-            <li key={r.id}>
-              <button onClick={() => openEdit(r)} className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-secondary/60">
-                <span className="tabular w-8 text-xs text-muted-foreground">#{r.id}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{r.cliente}</p>
-                  <p className="truncate text-xs text-muted-foreground">{pretty(r.ciudad || r.region)}</p>
-                </div>
-                <StageBadge estado={r.estado} className="hidden sm:inline-flex" />
-                <span className="tabular w-28 text-right text-sm font-semibold">{formatCOP(r.monto)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        {recent.length === 0 ? (
+          <Empty>
+            Aún no tienes oportunidades registradas. Haz clic en el botón "+ Nueva oportunidad" para agregar tu primer cliente.
+          </Empty>
+        ) : (
+          <ul className="-mx-2 divide-y">
+            {recent.map((r) => (
+              <li key={r.id}>
+                <button onClick={() => openEdit(r)} className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-secondary/60">
+                  <span className="tabular w-8 text-xs text-muted-foreground">#{r.id}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">{r.cliente}</p>
+                    <p className="truncate text-xs text-muted-foreground">{pretty(r.ciudad || r.region)}</p>
+                  </div>
+                  <StageBadge estado={r.estado} className="hidden sm:inline-flex" />
+                  <span className="tabular w-28 text-right text-sm font-semibold">{formatCOP(r.monto)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Panel>
     </div>
   );
@@ -216,7 +318,19 @@ function initials(name: string) {
     .join("");
 }
 
-function Kpi({ icon, label, value, detail, tone = "default" }: { icon: ReactNode; label: string; value: string; detail: string; tone?: "default" | "alert" | undefined }) {
+function Kpi({
+  icon,
+  label,
+  value,
+  detail,
+  tone = "default",
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  detail: string;
+  tone?: "default" | "alert" | undefined;
+}) {
   return (
     <div className="rounded-2xl border bg-card p-4 shadow-card sm:p-5">
       <div className="flex items-center justify-between">
@@ -236,7 +350,17 @@ function Kpi({ icon, label, value, detail, tone = "default" }: { icon: ReactNode
   );
 }
 
-function Panel({ title, action, className, children }: { title: string; action?: ReactNode | undefined; className?: string | undefined; children: ReactNode }) {
+function Panel({
+  title,
+  action,
+  className,
+  children,
+}: {
+  title: string;
+  action?: ReactNode | undefined;
+  className?: string | undefined;
+  children: ReactNode;
+}) {
   return (
     <section className={cn("rounded-2xl border bg-card p-5 shadow-card", className)}>
       <div className="mb-4 flex items-center justify-between">
@@ -257,5 +381,5 @@ function PanelLink({ to, children }: { to: "/pipeline" | "/seguimientos" | "/opo
 }
 
 function Empty({ children }: { children: ReactNode }) {
-  return <p className="rounded-xl bg-surface p-4 text-sm text-muted-foreground">{children}</p>;
+  return <p className="rounded-xl bg-surface p-4 text-sm text-muted-foreground text-center py-6">{children}</p>;
 }
