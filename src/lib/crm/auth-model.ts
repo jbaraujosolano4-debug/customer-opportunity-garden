@@ -17,6 +17,17 @@ export const loginSchema = z.object({
   password: z.string().min(1, "La contraseña es requerida"),
 });
 
+export const registerSchema = z.object({
+  nombre: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres"),
+  email: z.string().trim().email("Ingresa un correo electrónico válido"),
+  password: z.string().min(4, "La contraseña debe tener al menos 4 caracteres"),
+});
+
+export const resetPasswordSchema = z.object({
+  email: z.string().trim().email("Ingresa un correo electrónico válido"),
+  newPassword: z.string().min(4, "La contraseña debe tener al menos 4 caracteres"),
+});
+
 export const userSchema = z.object({
   id: z.string().trim().optional(),
   nombre: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres"),

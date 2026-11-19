@@ -6,12 +6,20 @@ import {
   scriptListUsers,
   scriptSaveUser,
   scriptDeleteUser,
+  scriptResetPassword,
 } from "./apps-script.server";
-import { DEMO_ADMIN, loginSchema, userSchema, type CrmUser } from "./auth-model";
+import {
+  DEMO_ADMIN,
+  loginSchema,
+  registerSchema,
+  resetPasswordSchema,
+  userSchema,
+  type CrmUser,
+} from "./auth-model";
 
 import { getScriptUrl } from "./script-url";
 
-function scriptUrl(): string | undefined {
+function scriptUrl(): string {
   return getScriptUrl();
 }
 
@@ -26,24 +34,49 @@ export const loginServerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => loginSchema.parse(data))
   .handler(async ({ data }): Promise<CrmUser> => {
     const url = scriptUrl();
-    if (!url) {
-      if (data.email.toLowerCase() === "admin@crm.com" && data.password === "admin123") {
-        return DEMO_ADMIN;
-      }
-      const found = inMemoryUsers.find(
-        (u) => u.email.toLowerCase() === data.email.toLowerCase(),
-      );
-      if (found && data.password === "admin123") {
-        if (found.estado !== "ACTIVO") throw new Error("Usuario inactivo.");
-        return found;
-      }
-      throw new Error("Credenciales inválidas (Modo Demo: admin@crm.com / admin123)");
-    }
-
     try {
-      return await scriptLogin(url, data.email, data.password);
+      return await scriptLogin(url, data.email.trim(), data.password);
     } catch (error) {
       console.error("Login failed:", error);
+      throw new Error(message(error));
+    }
+  });
+
+export const registerServerFn = createServerFn({ method: "POST" })
+  .validator((data: unknown) => registerSchema.parse(data))
+  .handler(async ({ data }): Promise<CrmUser> => {
+    const url = scriptUrl();
+    const cleanEmail = data.email.trim().toLowerCase();
+
+    try {
+      const users = await scriptListUsers(url);
+      if (users.some((u) => u.email.trim().toLowerCase() === cleanEmail)) {
+        throw new Error("Ya existe un usuario registrado con este correo electrónico.");
+      }
+
+      const created = await scriptSaveUser(url, {
+        nombre: data.nombre.trim(),
+        email: cleanEmail,
+        password: data.password,
+        rol: "ASESOR",
+        estado: "ACTIVO",
+      });
+      return created;
+    } catch (error) {
+      console.error("Register user failed:", error);
+      throw new Error(message(error));
+    }
+  });
+
+export const resetPasswordServerFn = createServerFn({ method: "POST" })
+  .validator((data: unknown) => resetPasswordSchema.parse(data))
+  .handler(async ({ data }): Promise<{ success: boolean; message: string }> => {
+    const url = scriptUrl();
+    try {
+      await scriptResetPassword(url, data.email.trim().toLowerCase(), data.newPassword);
+      return { success: true, message: "Contraseña restablecida exitosamente." };
+    } catch (error) {
+      console.error("Reset password failed:", error);
       throw new Error(message(error));
     }
   });

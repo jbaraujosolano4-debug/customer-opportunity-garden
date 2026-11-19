@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, type ReactNode }
 import { toast } from "sonner";
 
 import type { CrmUser } from "@/lib/crm/auth-model";
-import { loginServerFn } from "@/lib/crm/auth.functions";
+import { loginServerFn, registerServerFn, resetPasswordServerFn } from "@/lib/crm/auth.functions";
 
 type AuthContextType = {
   user: CrmUser | null;
@@ -10,6 +10,8 @@ type AuthContextType = {
   isAdmin: boolean;
   isLoading: boolean;
   login: (email: string, pass: string) => Promise<boolean>;
+  register: (nombre: string, email: string, pass: string) => Promise<boolean>;
+  resetPassword: (email: string, newPass: string) => Promise<boolean>;
   logout: () => void;
 };
 
@@ -21,6 +23,8 @@ const defaultAuth: AuthContextType = {
   isAdmin: false,
   isLoading: true,
   login: async () => false,
+  register: async () => false,
+  resetPassword: async () => false,
   logout: () => {},
 };
 
@@ -66,6 +70,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const register = async (nombre: string, email: string, pass: string): Promise<boolean> => {
+    try {
+      const newUser = await registerServerFn({ data: { nombre, email, password: pass } });
+      setUser(newUser);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
+      }
+      toast.success(`¡Cuenta creada con éxito! Bienvenido, ${newUser.nombre}`);
+      return true;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Error al registrarse";
+      toast.error(msg);
+      return false;
+    }
+  };
+
+  const resetPassword = async (email: string, newPass: string): Promise<boolean> => {
+    try {
+      const res = await resetPasswordServerFn({ data: { email, newPassword: newPass } });
+      toast.success(res.message || "Contraseña restablecida exitosamente.");
+      return true;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Error al restablecer contraseña";
+      toast.error(msg);
+      return false;
+    }
+  };
+
   const logout = () => {
     setUser(null);
     if (typeof window !== "undefined") {
@@ -82,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: user?.rol === "ADMIN",
         isLoading,
         login,
+        register,
+        resetPassword,
         logout,
       }}
     >

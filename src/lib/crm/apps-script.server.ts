@@ -84,3 +84,31 @@ export async function scriptSaveUser(url: string, user: UserInput): Promise<CrmU
 export async function scriptDeleteUser(url: string, id: string): Promise<void> {
   await scriptPost(url, { action: "deleteUser", id });
 }
+
+export async function scriptResetPassword(
+  url: string,
+  email: string,
+  newPassword: string,
+): Promise<void> {
+  try {
+    const json = await scriptPost(url, { action: "resetPassword", email, newPassword });
+    if (json.ok) return;
+  } catch {
+    // Si la acción resetPassword aún no está en el despliegue de Apps Script,
+    // usamos fallback vía listUsers y updateUser:
+  }
+
+  const users = await scriptListUsers(url);
+  const found = users.find((u) => u.email.trim().toLowerCase() === email.trim().toLowerCase());
+  if (!found) {
+    throw new Error(`No existe ningún usuario registrado con el correo "${email}".`);
+  }
+  await scriptSaveUser(url, {
+    id: found.id,
+    nombre: found.nombre,
+    email: found.email,
+    password: newPassword,
+    rol: found.rol,
+    estado: found.estado,
+  });
+}
