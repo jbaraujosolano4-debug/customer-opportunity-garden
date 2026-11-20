@@ -41,6 +41,8 @@ export const Route = createFileRoute("/seguimientos")({
 function FollowUpsPage() {
   const { records, mode, error, isAdmin, user } = useFilteredOpportunities();
   const today = todayISO();
+  const weekEnd = addDays(today, 7);
+  const byDate = (a: Opportunity, b: Opportunity) => a.proximoContacto.localeCompare(b.proximoContacto);
 
   const overdue = records.filter((r) => followUpStatus(r.proximoContacto, today) === "overdue").sort(byDate);
   const dueToday = records.filter((r) => followUpStatus(r.proximoContacto, today) === "today");

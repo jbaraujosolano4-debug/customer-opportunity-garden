@@ -143,14 +143,23 @@ function UsersPage() {
       return;
     }
 
-    saveMutation.mutate({
-      id: editingUser?.id,
+    const payload: {
+      id?: string;
+      nombre: string;
+      email: string;
+      password?: string;
+      rol: UserRole;
+      estado: UserStatus;
+    } = {
       nombre,
       email,
-      password: password.trim() ? password.trim() : undefined,
       rol,
       estado,
-    });
+    };
+    if (editingUser?.id) payload.id = editingUser.id;
+    if (password.trim()) payload.password = password.trim();
+
+    saveMutation.mutate(payload);
   };
 
   const handleDelete = (u: CrmUser) => {

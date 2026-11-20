@@ -101,7 +101,16 @@ export const saveUserServerFn = createServerFn({ method: "POST" })
     if (!url) {
       if (data.id) {
         inMemoryUsers = inMemoryUsers.map((u) =>
-          u.id === data.id ? { ...u, ...data, id: u.id } : u,
+          u.id === data.id
+            ? {
+                id: u.id,
+                nombre: data.nombre,
+                email: data.email,
+                rol: data.rol,
+                estado: data.estado,
+                ...(u.fechaCreacion ? { fechaCreacion: u.fechaCreacion } : {}),
+              }
+            : u,
         );
         return inMemoryUsers.find((u) => u.id === data.id)!;
       }
