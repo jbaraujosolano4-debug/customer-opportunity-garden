@@ -96,6 +96,9 @@ function doPost(e) {
         deleteUser_(String(body.id));
         return { ok: true, id: String(body.id) };
       }
+      if (action === 'resetPassword') {
+        return { ok: true, message: resetPassword_(body.email, body.newPassword) };
+      }
 
       // --- MÓDULO DE OPORTUNIDADES ---
       if (action === 'list') {
@@ -342,6 +345,26 @@ function deleteUser_(id) {
   }
 
   sh.deleteRow(rowNum);
+}
+
+function resetPassword_(email, newPassword) {
+  if (!email || !newPassword) throw new Error('Email y nueva contraseña requeridos.');
+  const sh = usersSheet_();
+  const cols = userColumns_(sh);
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) throw new Error('No hay usuarios registrados.');
+  const emails = sh.getRange(2, cols.email, lastRow - 1, 1).getValues();
+  const target = String(email).trim().toLowerCase();
+  let rowIdx = -1;
+  for (let i = 0; i < emails.length; i++) {
+    if (String(emails[i][0]).trim().toLowerCase() === target) {
+      rowIdx = i + 2;
+      break;
+    }
+  }
+  if (rowIdx === -1) throw new Error('No existe una cuenta con el correo: ' + email);
+  sh.getRange(rowIdx, cols.password).setValue(String(newPassword).trim());
+  return 'Contraseña actualizada correctamente.';
 }
 
 // ==========================================

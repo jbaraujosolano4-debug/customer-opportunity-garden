@@ -30,15 +30,74 @@ function message(error: unknown): string {
 // Memoria demo para cuando no hay APPS_SCRIPT_URL
 let inMemoryUsers: CrmUser[] = [DEMO_ADMIN];
 
+// ==========================================
+// CONTROL DE INTENTOS Y SEGURIDAD (MÁXIMO 5)
+// ==========================================
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 15;
+const LOCKOUT_DURATION_MS = LOCKOUT_MINUTES * 60 * 1000;
+
+type AttemptRecord = {
+  attempts: number;
+  lockedUntil: number | null;
+};
+
+const loginAttempts = new Map<string, AttemptRecord>();
+
+function getAttemptRecord(email: string): AttemptRecord {
+  const record = loginAttempts.get(email);
+  if (!record) {
+    const fresh: AttemptRecord = { attempts: 0, lockedUntil: null };
+    loginAttempts.set(email, fresh);
+    return fresh;
+  }
+  if (record.lockedUntil && Date.now() > record.lockedUntil) {
+    record.attempts = 0;
+    record.lockedUntil = null;
+  }
+  return record;
+}
+
+function clearAttemptRecord(email: string) {
+  loginAttempts.delete(email);
+}
+
 export const loginServerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => loginSchema.parse(data))
   .handler(async ({ data }): Promise<CrmUser> => {
+    const cleanEmail = data.email.trim().toLowerCase();
+    const record = getAttemptRecord(cleanEmail);
+
+    // Verificar si la cuenta está actualmente bloqueada
+    if (record.lockedUntil && Date.now() < record.lockedUntil) {
+      const remainingMinutes = Math.ceil((record.lockedUntil - Date.now()) / 60000);
+      throw new Error(
+        `Acceso bloqueado por seguridad: has superado los ${MAX_LOGIN_ATTEMPTS} intentos fallidos permitidos. Intenta de nuevo en ${remainingMinutes} minuto(s) o utiliza '¿Olvidaste tu contraseña?'.`,
+      );
+    }
+
     const url = scriptUrl();
     try {
-      return await scriptLogin(url, data.email.trim(), data.password);
+      const user = await scriptLogin(url, cleanEmail, data.password);
+      // Éxito: restablecer intentos fallidos a 0
+      clearAttemptRecord(cleanEmail);
+      return user;
     } catch (error) {
       console.error("Login failed:", error);
-      throw new Error(message(error));
+
+      // Registrar intento fallido
+      record.attempts += 1;
+      if (record.attempts >= MAX_LOGIN_ATTEMPTS) {
+        record.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+        throw new Error(
+          `Has superado el límite máximo de ${MAX_LOGIN_ATTEMPTS} intentos de ingreso. Por seguridad, el acceso ha sido bloqueado durante ${LOCKOUT_MINUTES} minutos.`,
+        );
+      }
+
+      const remaining = MAX_LOGIN_ATTEMPTS - record.attempts;
+      throw new Error(
+        `Credenciales incorrectas. Te ${remaining === 1 ? "queda" : "quedan"} ${remaining} ${remaining === 1 ? "intento" : "intentos"} antes del bloqueo de seguridad.`,
+      );
     }
   });
 
@@ -72,9 +131,11 @@ export const resetPasswordServerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => resetPasswordSchema.parse(data))
   .handler(async ({ data }): Promise<{ success: boolean; message: string }> => {
     const url = scriptUrl();
+    const cleanEmail = data.email.trim().toLowerCase();
     try {
-      await scriptResetPassword(url, data.email.trim().toLowerCase(), data.newPassword);
-      return { success: true, message: "Contraseña restablecida exitosamente." };
+      await scriptResetPassword(url, cleanEmail, data.newPassword);
+      clearAttemptRecord(cleanEmail);
+      return { success: true, message: "Contraseña restablecida exitosamente. Tu cuenta ha sido desbloqueada." };
     } catch (error) {
       console.error("Reset password failed:", error);
       throw new Error(message(error));

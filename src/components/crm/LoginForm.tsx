@@ -1,5 +1,20 @@
-import { useState } from "react";
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, KeyRound, Lock, LogIn, Mail, User, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Lock,
+  LogIn,
+  Mail,
+  ShieldAlert,
+  ShieldCheck,
+  Timer,
+  User,
+  UserPlus,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +23,14 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/components/crm/auth-context";
 
 type AuthMode = "login" | "register" | "recovery";
+
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 15;
+const LOCKOUT_MS = LOCKOUT_MINUTES * 60 * 1000;
+
+function getStorageKey(email: string) {
+  return `crm_sec_attempts_${email.trim().toLowerCase()}`;
+}
 
 export function LoginForm() {
   const { login, register, resetPassword } = useAuth();
@@ -21,12 +44,95 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Manejo de Iniciar Sesión
+  // Estados de seguridad y límite de 5 intentos
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
+
+  // Cargar estado de intentos al escribir o cambiar de email
+  useEffect(() => {
+    if (typeof window === "undefined" || !email.trim()) {
+      setFailedAttempts(0);
+      setLockedUntil(null);
+      setRemainingSeconds(0);
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(getStorageKey(email));
+      if (raw) {
+        const parsed = JSON.parse(raw) as { attempts: number; lockedUntil: number | null };
+        if (parsed.lockedUntil && Date.now() < parsed.lockedUntil) {
+          setLockedUntil(parsed.lockedUntil);
+          setFailedAttempts(MAX_ATTEMPTS);
+          setRemainingSeconds(Math.max(0, Math.ceil((parsed.lockedUntil - Date.now()) / 1000)));
+        } else {
+          // Si el tiempo de bloqueo ya expiró, limpiar
+          if (parsed.lockedUntil && Date.now() >= parsed.lockedUntil) {
+            localStorage.removeItem(getStorageKey(email));
+            setFailedAttempts(0);
+            setLockedUntil(null);
+            setRemainingSeconds(0);
+          } else {
+            setFailedAttempts(parsed.attempts || 0);
+            setLockedUntil(null);
+          }
+        }
+      } else {
+        setFailedAttempts(0);
+        setLockedUntil(null);
+      }
+    } catch {
+      // Ignorar error de parsing en localStorage
+    }
+  }, [email]);
+
+  // Contador regresivo en vivo para el bloqueo
+  useEffect(() => {
+    if (!lockedUntil) return;
+
+    const tick = () => {
+      const leftMs = lockedUntil - Date.now();
+      if (leftMs <= 0) {
+        setLockedUntil(null);
+        setRemainingSeconds(0);
+        setFailedAttempts(0);
+        if (email.trim() && typeof window !== "undefined") {
+          localStorage.removeItem(getStorageKey(email));
+        }
+        toast.info("El tiempo de bloqueo ha expirado. Ya puedes intentar nuevamente.");
+      } else {
+        setRemainingSeconds(Math.ceil(leftMs / 1000));
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [lockedUntil, email]);
+
+  const isLocked = lockedUntil !== null && remainingSeconds > 0;
+
+  const formatCountdown = (totalSec: number) => {
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs} min`;
+  };
+
+  // Manejo de Iniciar Sesión con límite estricto de 5 intentos
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (isLocked) {
+      toast.error(
+        `Acceso bloqueado por seguridad. Espera ${formatCountdown(remainingSeconds)} o restablece tu clave.`,
+      );
+      return;
+    }
+
     if (!cleanEmail || !password) {
-      toast.error("Por favor completa todos los campos");
+      toast.error("Por favor completa tu correo y contraseña");
       return;
     }
 
@@ -34,7 +140,36 @@ export function LoginForm() {
     try {
       const ok = await login(cleanEmail, password);
       if (ok) {
+        // Éxito: limpiar intentos fallidos en localStorage
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(getStorageKey(cleanEmail));
+        }
+        setFailedAttempts(0);
+        setLockedUntil(null);
         window.location.href = "/";
+      } else {
+        // Falló el login: registrar intento
+        const nextAttempts = failedAttempts + 1;
+        setFailedAttempts(nextAttempts);
+
+        if (nextAttempts >= MAX_ATTEMPTS) {
+          const lockTime = Date.now() + LOCKOUT_MS;
+          setLockedUntil(lockTime);
+          setRemainingSeconds(LOCKOUT_MINUTES * 60);
+          if (typeof window !== "undefined") {
+            localStorage.setItem(
+              getStorageKey(cleanEmail),
+              JSON.stringify({ attempts: nextAttempts, lockedUntil: lockTime }),
+            );
+          }
+        } else {
+          if (typeof window !== "undefined") {
+            localStorage.setItem(
+              getStorageKey(cleanEmail),
+              JSON.stringify({ attempts: nextAttempts, lockedUntil: null }),
+            );
+          }
+        }
       }
     } finally {
       setSubmitting(false);
@@ -45,7 +180,7 @@ export function LoginForm() {
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanNombre = nombre.trim();
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanNombre || !cleanEmail || !password) {
       toast.error("Por favor completa todos los campos");
@@ -66,6 +201,9 @@ export function LoginForm() {
     try {
       const ok = await register(cleanNombre, cleanEmail, password);
       if (ok) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(getStorageKey(cleanEmail));
+        }
         window.location.href = "/";
       }
     } finally {
@@ -73,10 +211,10 @@ export function LoginForm() {
     }
   };
 
-  // Manejo de Recuperar Contraseña
+  // Manejo de Recuperar Contraseña (desbloquea automáticamente la cuenta)
   const handleRecoverySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
 
     if (!cleanEmail || !password) {
       toast.error("Por favor completa el correo y la nueva contraseña");
@@ -97,6 +235,12 @@ export function LoginForm() {
     try {
       const ok = await resetPassword(cleanEmail, password);
       if (ok) {
+        // Desbloquear inmediatamente la cuenta en el cliente
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(getStorageKey(cleanEmail));
+        }
+        setFailedAttempts(0);
+        setLockedUntil(null);
         setPassword("");
         setConfirmPassword("");
         setMode("login");
@@ -118,7 +262,7 @@ export function LoginForm() {
         {/* Cabecera dinámica según el modo */}
         <div className="text-center space-y-2">
           <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-            {mode === "login" && <Lock className="size-6" />}
+            {mode === "login" && (isLocked ? <ShieldAlert className="size-6 text-destructive-foreground" /> : <Lock className="size-6" />)}
             {mode === "register" && <UserPlus className="size-6" />}
             {mode === "recovery" && <KeyRound className="size-6" />}
           </div>
@@ -135,12 +279,40 @@ export function LoginForm() {
         </div>
 
         {/* Tarjeta del Formulario */}
-        <div className="rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
+        <div className="rounded-2xl border bg-card p-6 shadow-sm sm:p-8 space-y-5">
           {/* ======================================================== */}
           {/* MODO 1: INICIAR SESIÓN                                   */}
           {/* ======================================================== */}
           {mode === "login" && (
             <form onSubmit={handleLoginSubmit} className="space-y-4">
+              {/* ALERTA DE BLOQUEO POR EXCESO DE INTENTOS (5 INTENTOS) */}
+              {isLocked && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-xs space-y-2 animate-in slide-in-from-top-2">
+                  <div className="flex items-center gap-2 font-bold text-destructive">
+                    <ShieldAlert className="size-4" />
+                    <span>Acceso bloqueado por seguridad</span>
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Has superado el límite de <b>{MAX_ATTEMPTS} intentos fallidos</b>. Por protección de tu cuenta, el acceso se encuentra suspendido temporalmente.
+                  </p>
+                  <div className="flex items-center justify-between rounded-lg bg-background/80 p-2 border border-destructive/20 font-mono">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Timer className="size-3.5" /> Desbloqueo en:
+                    </span>
+                    <span className="font-bold text-destructive text-xs">
+                      {formatCountdown(remainingSeconds)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => switchMode("recovery")}
+                    className="text-xs font-semibold text-primary hover:underline block pt-1"
+                  >
+                    ¿Olvidaste tu contraseña? Restablécela aquí para desbloquear de inmediato.
+                  </button>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label htmlFor="login-email">Correo electrónico</Label>
                 <div className="relative">
@@ -154,6 +326,7 @@ export function LoginForm() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoFocus
+                    disabled={submitting}
                   />
                 </div>
               </div>
@@ -179,6 +352,7 @@ export function LoginForm() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    disabled={isLocked || submitting}
                   />
                   <button
                     type="button"
@@ -189,17 +363,43 @@ export function LoginForm() {
                     {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
                 </div>
+
+                {/* ADVERTENCIA DE INTENTOS FALLIDOS EN CURSO (< 5) */}
+                {!isLocked && failedAttempts > 0 && (
+                  <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium pt-1">
+                    <AlertTriangle className="size-3.5 shrink-0" />
+                    <span>
+                      {failedAttempts} de {MAX_ATTEMPTS} intentos fallidos. Te {MAX_ATTEMPTS - failedAttempts === 1 ? "queda" : "quedan"}{" "}
+                      <b>{MAX_ATTEMPTS - failedAttempts}</b> antes del bloqueo.
+                    </span>
+                  </div>
+                )}
               </div>
 
-              <Button type="submit" className="w-full gap-2 mt-3" disabled={submitting}>
+              <Button
+                type="submit"
+                className="w-full gap-2 mt-3"
+                disabled={submitting || isLocked}
+                variant={isLocked ? "secondary" : "default"}
+              >
                 {submitting ? (
                   <>Verificando en Google Sheets...</>
+                ) : isLocked ? (
+                  <>
+                    <Lock className="size-4" /> Bloqueado ({formatCountdown(remainingSeconds)})
+                  </>
                 ) : (
                   <>
                     <LogIn className="size-4" /> Iniciar sesión
                   </>
                 )}
               </Button>
+
+              {/* Indicador de seguridad */}
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground pt-1">
+                <ShieldCheck className="size-3.5 text-emerald-500" />
+                <span>Protección contra fuerza bruta: máx. 5 intentos</span>
+              </div>
 
               <div className="pt-4 text-center border-t text-sm">
                 <span className="text-muted-foreground">¿No tienes una cuenta? </span>
