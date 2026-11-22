@@ -61,6 +61,7 @@ function PipelinePage() {
           {stages.map((stage) => {
             const items = records.filter((r) => stageInfo(r.estado).value === stage.value);
             const value = items.reduce((s, r) => s + r.monto, 0);
+            const stagePares = items.reduce((s, r) => s + (r.pares || 0), 0);
             const tone = TONE_CLASSES[stage.tone];
             return (
               <section
@@ -82,7 +83,10 @@ function PipelinePage() {
                     <h2 className="text-sm font-bold">{stage.label}</h2>
                     <span className="rounded-full bg-card px-2 py-0.5 text-xs font-semibold text-muted-foreground">{items.length}</span>
                   </div>
-                  <span className="tabular text-xs font-semibold text-muted-foreground">{formatCompactCOP(value)}</span>
+                  <span className="tabular text-xs font-semibold text-muted-foreground">
+                    {formatCompactCOP(value)}
+                    {stagePares > 0 && <span className="ml-1 text-[11px] font-normal">({stagePares} p.)</span>}
+                  </span>
                 </header>
 
                 <div className="flex min-h-24 flex-1 flex-col gap-2">
@@ -107,7 +111,14 @@ function PipelinePage() {
                         {[pretty(r.categoria), pretty(r.producto), pretty(r.ciudad || r.region)].filter(Boolean).join(" · ")}
                       </p>
                       <div className="mt-3 flex items-center justify-between gap-2">
-                        <span className="tabular text-sm font-bold">{formatCOP(r.monto)}</span>
+                        <div>
+                          <span className="tabular text-sm font-bold">{formatCOP(r.monto)}</span>
+                          {r.pares > 0 && (
+                            <span className="block text-[11px] font-medium text-muted-foreground">
+                              {r.pares.toLocaleString("es-CO")} pares
+                            </span>
+                          )}
+                        </div>
                         <FollowUpChip date={r.proximoContacto} today={today} />
                       </div>
                       {r.asignado && (

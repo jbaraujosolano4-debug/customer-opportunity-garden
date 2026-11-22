@@ -62,12 +62,17 @@ function OpportunitiesPage() {
   const filtered = useMemo(() => {
     const needle = normalizeKey(q);
     const eq = (a: string, b: string) => b === ALL || normalizeKey(a) === normalizeKey(b);
+    const eqCat = (a: string, b: string) => {
+      if (b === ALL) return true;
+      const nb = normalizeKey(b);
+      return a.split(",").some((item) => normalizeKey(item) === nb);
+    };
     const list = records.filter((r) => {
       if (estado !== ALL && stageInfo(r.estado).value !== estado) return false;
-      if (!eq(r.asignado, asesor) || !eq(r.region, region) || !eq(r.categoria, categoria)) return false;
+      if (!eq(r.asignado, asesor) || !eq(r.region, region) || !eqCat(r.categoria, categoria)) return false;
       if (!needle) return true;
       return normalizeKey(
-        [r.id, r.cliente, r.nit, r.ciudad, r.region, r.producto, r.categoria, r.canal, r.notas].join(" "),
+        [r.id, r.cliente, r.nit, r.ciudad, r.region, r.producto, r.categoria, r.canal, r.notas, String(r.pares || "")].join(" "),
       ).includes(needle);
     });
     const dir = sort === "monto" || sort === "fechaCreacion" ? -1 : 1;
@@ -83,6 +88,7 @@ function OpportunitiesPage() {
   }, [records, q, estado, asesor, region, categoria, sort]);
 
   const total = filtered.reduce((s, r) => s + r.monto, 0);
+  const totalPares = filtered.reduce((s, r) => s + (r.pares || 0), 0);
   const hasFilters = q || estado !== ALL || asesor !== ALL || region !== ALL || categoria !== ALL;
   const clear = () => {
     setQ("");
@@ -96,7 +102,9 @@ function OpportunitiesPage() {
     <div className="space-y-5 animate-rise">
       <PageHeader
         title="Oportunidades"
-        subtitle={`${filtered.length} de ${records.length} · ${formatCOP(total)}`}
+        subtitle={`${filtered.length} de ${records.length} · ${formatCOP(total)}${
+          totalPares > 0 ? ` · ${totalPares.toLocaleString("es-CO")} pares` : ""
+        }`}
         actions={
           <>
             <Button variant="outline" size="sm" className="h-9" onClick={() => downloadCsv(filtered)}>
@@ -187,7 +195,14 @@ function OpportunitiesPage() {
                         <p>{pretty(r.producto) || "—"}</p>
                         {r.categoria && <p className="text-xs text-muted-foreground">{pretty(r.categoria)}</p>}
                       </td>
-                      <td className="tabular px-4 py-3.5 text-right font-semibold">{formatCOP(r.monto)}</td>
+                      <td className="tabular px-4 py-3.5 text-right font-semibold">
+                        <div>{formatCOP(r.monto)}</div>
+                        {r.pares > 0 && (
+                          <div className="text-xs font-normal text-muted-foreground">
+                            {r.pares.toLocaleString("es-CO")} pares
+                          </div>
+                        )}
+                      </td>
                       <td className="px-4 py-3.5">
                         <StageBadge estado={r.estado} />
                       </td>
@@ -216,7 +231,12 @@ function OpportunitiesPage() {
                     <StageBadge estado={r.estado} />
                   </div>
                   <div className="mt-3 flex items-center justify-between">
-                    <span className="tabular text-base font-bold">{formatCOP(r.monto)}</span>
+                    <div>
+                      <span className="tabular text-base font-bold">{formatCOP(r.monto)}</span>
+                      {r.pares > 0 && (
+                        <span className="ml-2 text-xs text-muted-foreground">({r.pares.toLocaleString("es-CO")} pares)</span>
+                      )}
+                    </div>
                     <FollowUpChip date={r.proximoContacto} today={today} />
                   </div>
                 </button>
@@ -258,8 +278,8 @@ function Filter({
 }
 
 function downloadCsv(rows: Opportunity[]) {
-  const headers = ["ID", "Cliente", "NIT", "Región", "Ciudad", "Canal", "Asignado a", "Monto", "Estado", "Fecha de creación", "Fecha de cierre", "Categoría", "Producto", "Próximo contacto", "Última gestión", "Notas"];
-  const keys: (keyof Opportunity)[] = ["id", "cliente", "nit", "region", "ciudad", "canal", "asignado", "monto", "estado", "fechaCreacion", "fechaCierre", "categoria", "producto", "proximoContacto", "ultimaGestion", "notas"];
+  const headers = ["ID", "Cliente", "NIT", "Región", "Ciudad", "Canal", "Asignado a", "Monto", "Pares", "Estado", "Fecha de creación", "Fecha de cierre", "Categoría", "Producto", "Próximo contacto", "Última gestión", "Notas"];
+  const keys: (keyof Opportunity)[] = ["id", "cliente", "nit", "region", "ciudad", "canal", "asignado", "monto", "pares", "estado", "fechaCreacion", "fechaCierre", "categoria", "producto", "proximoContacto", "ultimaGestion", "notas"];
   const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const csv = [headers.map(esc).join(","), ...rows.map((r) => keys.map((k) => esc(r[k])).join(","))].join("\n");
   const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });

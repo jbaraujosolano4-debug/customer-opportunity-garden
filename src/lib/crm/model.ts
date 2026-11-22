@@ -9,6 +9,7 @@ export type Opportunity = {
   canal: string;
   asignado: string;
   monto: number;
+  pares: number;
   estado: string;
   fechaCreacion: string;
   fechaCierre: string;
@@ -54,7 +55,16 @@ export const TONE_CLASSES: Record<StageTone, { badge: string; dot: string; bar: 
   neutral: { badge: "bg-stage-neutral/10 text-stage-neutral", dot: "bg-stage-neutral", bar: "bg-stage-neutral" },
 };
 
-export const DEFAULT_CATEGORIES = ["Soccer", "Running", "Pádel"];
+export const DEFAULT_CATEGORIES = [
+  "Soccer",
+  "Running",
+  "Pádel",
+  "Indoor",
+  "Outdoor",
+  "Lifestyle",
+  "Tenis",
+  "Entrenamiento",
+];
 
 export function normalizeKey(value: string): string {
   return value
@@ -77,6 +87,14 @@ export function pretty(value: string): string {
   if (!value) return "";
   if (value !== value.toUpperCase()) return value;
   return value.toLowerCase().replace(/(^|[\s\-/])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase());
+}
+
+export function parseNumber(value: unknown): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value !== "string") return 0;
+  const digits = value.replace(/[^0-9.-]+/g, "");
+  const n = Number(digits);
+  return Number.isFinite(n) ? n : 0;
 }
 
 export function parseMonto(value: unknown): number {
@@ -114,6 +132,7 @@ export function normalizeRecord(raw: Record<string, unknown>): Opportunity {
     canal: str(raw["canal"]),
     asignado: str(raw["asignado"]),
     monto: parseMonto(raw["monto"]),
+    pares: parseNumber(raw["pares"]),
     estado: normalizeKey(str(raw["estado"])),
     fechaCreacion: parseDate(raw["fechaCreacion"]),
     fechaCierre: parseDate(raw["fechaCierre"]),
@@ -203,6 +222,7 @@ export function emptyOpportunity(today: string = todayISO()): OpportunityInput {
     canal: "",
     asignado: "",
     monto: 0,
+    pares: 0,
     estado: "PROSPECCION",
     fechaCreacion: today,
     fechaCierre: "",
@@ -235,10 +255,13 @@ export function stagesFor(records: Opportunity[]): Stage[] {
 export function uniqueValues(records: Opportunity[], key: keyof Opportunity, extra: string[] = []): string[] {
   const seen = new Map<string, string>();
   for (const v of [...extra, ...records.map((r) => String(r[key] ?? ""))]) {
-    const t = v.trim();
-    if (!t) continue;
-    const k = normalizeKey(t);
-    if (!seen.has(k)) seen.set(k, t);
+    const rawItems = key === "categoria" || key === "producto" ? v.split(",") : [v];
+    for (const item of rawItems) {
+      const t = item.trim();
+      if (!t) continue;
+      const k = normalizeKey(t);
+      if (!seen.has(k)) seen.set(k, t);
+    }
   }
   return [...seen.values()].sort((a, b) => a.localeCompare(b, "es"));
 }

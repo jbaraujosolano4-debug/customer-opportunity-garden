@@ -188,11 +188,43 @@ export function OpportunityDialog({ open, onOpenChange, record, preset, records 
                 placeholder="0"
               />
             </Field>
-            <Field label="Categoría">
-              <SuggestInput id="categoria" value={form.categoria} onChange={(v) => set("categoria", v)} options={suggestions.categoria} placeholder="Soccer, Running, Pádel…" />
+            <Field
+              label="Pares proyectados"
+              hint={
+                form.pares > 0
+                  ? `${form.pares.toLocaleString("es-CO")} pares${
+                      form.monto > 0
+                        ? ` · $ ${Math.round(form.monto / form.pares).toLocaleString("es-CO")}/par`
+                        : ""
+                    }`
+                  : undefined
+              }
+            >
+              <Input
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                value={form.pares || ""}
+                onChange={(e) => set("pares", Math.max(0, parseInt(e.target.value, 10) || 0))}
+                placeholder="0"
+              />
             </Field>
-            <Field label="Producto" className="sm:col-span-2">
-              <SuggestInput id="producto" value={form.producto} onChange={(v) => set("producto", v)} options={suggestions.producto} placeholder="Referencia o modelo" />
+            <Field label="Categorías (Opción múltiple)" className="sm:col-span-2">
+              <MultiTagInput
+                value={form.categoria}
+                onChange={(v) => set("categoria", v)}
+                options={suggestions.categoria}
+                placeholder="Selecciona o escribe categorías (ej. Soccer, Running...)"
+              />
+            </Field>
+            <Field label="Productos / Referencias (Varios datos)" className="sm:col-span-2">
+              <MultiTagInput
+                value={form.producto}
+                onChange={(v) => set("producto", v)}
+                options={suggestions.producto}
+                placeholder="Escribe referencias y presiona Enter o , (ej. Guayos Copa, Botas Predator...)"
+              />
             </Field>
           </Section>
 
@@ -294,5 +326,115 @@ function SuggestInput({
         ))}
       </datalist>
     </>
+  );
+}
+
+function MultiTagInput({
+  value,
+  onChange,
+  options = [],
+  placeholder = "Escribe y presiona Enter...",
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  options?: string[];
+  placeholder?: string;
+}) {
+  const [draft, setDraft] = useState("");
+
+  const tags = useMemo(() => {
+    return value
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+  }, [value]);
+
+  const addTag = (tagToAdd: string) => {
+    const clean = tagToAdd.trim().replace(/^,+|,+$/g, "");
+    if (!clean) return;
+    const exists = tags.some((t) => t.toLowerCase() === clean.toLowerCase());
+    if (!exists) {
+      const updated = [...tags, clean];
+      onChange(updated.join(", "));
+    }
+    setDraft("");
+  };
+
+  const removeTag = (indexToRemove: number) => {
+    const updated = tags.filter((_, idx) => idx !== indexToRemove);
+    onChange(updated.join(", "));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag(draft);
+    } else if (e.key === "Backspace" && !draft && tags.length > 0) {
+      removeTag(tags.length - 1);
+    }
+  };
+
+  const availableOptions = options.filter(
+    (opt) => !tags.some((t) => t.toLowerCase() === opt.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-2">
+      <div className="flex min-h-[42px] flex-wrap items-center gap-1.5 rounded-md border border-input bg-background p-1.5 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+        {tags.map((tag, idx) => (
+          <span
+            key={idx}
+            className="inline-flex items-center gap-1 rounded bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary border border-primary/20"
+          >
+            {tag}
+            <button
+              type="button"
+              onClick={() => removeTag(idx)}
+              className="ml-0.5 rounded-full p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              title="Quitar"
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+        <div className="flex flex-1 items-center gap-1 min-w-[140px]">
+          <input
+            type="text"
+            className="flex-1 bg-transparent px-1.5 py-0.5 text-sm outline-none placeholder:text-muted-foreground"
+            placeholder={tags.length === 0 ? placeholder : "Escribe otro..."}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+          {draft.trim() && (
+            <button
+              type="button"
+              onClick={() => addTag(draft)}
+              className="rounded bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+            >
+              + Agregar
+            </button>
+          )}
+        </div>
+      </div>
+
+      {availableOptions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+          <span className="font-medium text-[11px] uppercase tracking-wider text-muted-foreground/80 mr-1">
+            Sugerencias:
+          </span>
+          {availableOptions.slice(0, 8).map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => addTag(opt)}
+              className="rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-xs text-foreground/85 hover:border-primary/50 hover:bg-primary/10 hover:text-primary transition-colors"
+            >
+              + {opt}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

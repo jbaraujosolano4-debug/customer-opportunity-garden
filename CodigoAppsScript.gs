@@ -22,6 +22,7 @@ const FIELDS_OPPORTUNITY = [
   ['canal', 'CANAL', ['CANAL', 'TIPO DE CLIENTE', 'TIPO CLIENTE']],
   ['asignado', 'ASIGNADO A', ['ASIGNADO A', 'ASIGNADO', 'ASESOR', 'RESPONSABLE']],
   ['monto', 'MONTO', ['MONTO', 'VALOR', 'VALOR OPORTUNIDAD']],
+  ['pares', 'PARES', ['PARES', 'NUMERO DE PARES', 'CANTIDAD PARES', 'PARES PROYECTADOS', 'CANTIDAD']],
   ['estado', 'ESTADO', ['ESTADO', 'ETAPA', 'FASE']],
   ['fechaCreacion', 'FECHA DE CREACION', ['FECHA DE CREACION', 'FECHA CREACION', 'FECHA', 'REGISTRO']],
   ['fechaCierre', 'FECHA DE CIERRE', ['FECHA DE CIERRE', 'FECHA CIERRE']],
@@ -410,7 +411,7 @@ function toOut_(field, v) {
     const tz = Session.getScriptTimeZone() || 'America/Bogota';
     return Utilities.formatDate(v, tz, 'yyyy-MM-dd');
   }
-  if (field === 'monto') {
+  if (field === 'monto' || field === 'pares') {
     if (typeof v === 'number') return v;
     const n = Number(String(v).replace(/[^0-9.-]+/g, ''));
     return isNaN(n) ? 0 : n;

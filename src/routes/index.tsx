@@ -44,10 +44,13 @@ function Dashboard() {
   const today = todayISO();
 
   const total = records.reduce((s, r) => s + r.monto, 0);
+  const totalPares = records.reduce((s, r) => s + (r.pares || 0), 0);
   const closed = records.filter((r) => stageInfo(r.estado).value === "CERRADO");
   const closedValue = closed.reduce((s, r) => s + r.monto, 0);
+  const closedPares = closed.reduce((s, r) => s + (r.pares || 0), 0);
   const open = records.filter((r) => stageInfo(r.estado).value !== "CERRADO");
   const openValue = open.reduce((s, r) => s + r.monto, 0);
+  const openPares = open.reduce((s, r) => s + (r.pares || 0), 0);
   const overdue = records.filter((r) => followUpStatus(r.proximoContacto, today) === "overdue");
   const dueToday = records.filter((r) => followUpStatus(r.proximoContacto, today) === "today");
 
@@ -60,11 +63,15 @@ function Dashboard() {
   const group = (key: (r: (typeof records)[number]) => string) => {
     const map = new Map<string, { label: string; count: number; value: number }>();
     for (const r of records) {
-      const label = pretty(key(r)) || "Sin definir";
-      const g = map.get(label) ?? { label, count: 0, value: 0 };
-      g.count += 1;
-      g.value += r.monto;
-      map.set(label, g);
+      const raw = key(r);
+      const items = raw.includes(",") ? raw.split(",").map((s) => s.trim()).filter(Boolean) : [raw.trim()];
+      for (const item of items) {
+        const label = pretty(item) || "Sin definir";
+        const g = map.get(label) ?? { label, count: 0, value: 0 };
+        g.count += 1;
+        g.value += r.monto;
+        map.set(label, g);
+      }
     }
     return [...map.values()].sort((a, b) => b.value - a.value);
   };
@@ -165,19 +172,19 @@ function Dashboard() {
           icon={<CircleDollarSign />}
           label="Valor total"
           value={formatCompactCOP(total)}
-          detail={`${records.length} oportunidades`}
+          detail={`${records.length} oportunidades${totalPares > 0 ? ` · ${totalPares.toLocaleString("es-CO")} pares` : ""}`}
         />
         <Kpi
           icon={<Briefcase />}
           label="En gestión"
           value={formatCompactCOP(openValue)}
-          detail={`${open.length} abiertas`}
+          detail={`${open.length} abiertas${openPares > 0 ? ` · ${openPares.toLocaleString("es-CO")} pares` : ""}`}
         />
         <Kpi
           icon={<Trophy />}
           label="Cerradas"
           value={formatCompactCOP(closedValue)}
-          detail={`${closed.length} negocios`}
+          detail={`${closed.length} negocios${closedPares > 0 ? ` · ${closedPares.toLocaleString("es-CO")} pares` : ""}`}
         />
         <Kpi
           icon={<AlertCircle />}

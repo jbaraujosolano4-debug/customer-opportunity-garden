@@ -7,6 +7,7 @@ const base = {
   canal: "",
   fechaCierre: "",
   categoria: "",
+  pares: 0,
   proximoContacto: "",
   ultimaGestion: "",
   notas: "",
