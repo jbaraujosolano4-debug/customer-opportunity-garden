@@ -10,7 +10,7 @@ type AuthContextType = {
   isAdmin: boolean;
   isLoading: boolean;
   login: (email: string, pass: string) => Promise<boolean>;
-  register: (nombre: string, email: string, pass: string) => Promise<boolean>;
+  register: (nombre: string, email: string, pass: string, telefono?: string) => Promise<boolean>;
   resetPassword: (email: string, newPass: string) => Promise<boolean>;
   logout: () => void;
 };
@@ -70,9 +70,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (nombre: string, email: string, pass: string): Promise<boolean> => {
+  const register = async (nombre: string, email: string, pass: string, telefono?: string): Promise<boolean> => {
     try {
-      const newUser = await registerServerFn({ data: { nombre, email, password: pass } });
+      const newUser = await registerServerFn({
+        data: {
+          nombre,
+          email,
+          password: pass,
+          ...(telefono ? { telefono: telefono.trim() } : {}),
+        },
+      });
       setUser(newUser);
       if (typeof window !== "undefined") {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));

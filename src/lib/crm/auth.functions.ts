@@ -116,6 +116,7 @@ export const registerServerFn = createServerFn({ method: "POST" })
       const created = await scriptSaveUser(url, {
         nombre: data.nombre.trim(),
         email: cleanEmail,
+        telefono: data.telefono?.trim() || "",
         password: data.password,
         rol: "ASESOR",
         estado: "ACTIVO",

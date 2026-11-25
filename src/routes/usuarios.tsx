@@ -5,7 +5,9 @@ import {
   AlertCircle,
   KeyRound,
   Mail,
+  MessageCircle,
   Pencil,
+  Phone,
   Plus,
   Shield,
   ShieldAlert,
@@ -42,6 +44,7 @@ import {
   deleteUserServerFn,
 } from "@/lib/crm/auth.functions";
 import type { CrmUser, UserRole, UserStatus } from "@/lib/crm/auth-model";
+import { cleanWhatsAppNumber, DEFAULT_ADMIN_PHONE } from "@/lib/crm/whatsapp";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/usuarios")({
@@ -64,6 +67,7 @@ function UsersPage() {
   // Form states
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [password, setPassword] = useState("");
   const [rol, setRol] = useState<UserRole>("ASESOR");
   const [estado, setEstado] = useState<UserStatus>("ACTIVO");
@@ -81,6 +85,7 @@ function UsersPage() {
       id?: string;
       nombre: string;
       email: string;
+      telefono?: string;
       password?: string;
       rol: UserRole;
       estado: UserStatus;
@@ -111,6 +116,7 @@ function UsersPage() {
     setEditingUser(null);
     setNombre("");
     setEmail("");
+    setTelefono("");
     setPassword("");
     setRol("ASESOR");
     setEstado("ACTIVO");
@@ -121,6 +127,7 @@ function UsersPage() {
     setEditingUser(u);
     setNombre(u.nombre);
     setEmail(u.email);
+    setTelefono(u.telefono || (u.rol === "ADMIN" ? DEFAULT_ADMIN_PHONE : ""));
     setPassword("");
     setRol(u.rol);
     setEstado(u.estado);
@@ -147,12 +154,14 @@ function UsersPage() {
       id?: string;
       nombre: string;
       email: string;
+      telefono?: string;
       password?: string;
       rol: UserRole;
       estado: UserStatus;
     } = {
       nombre,
       email,
+      telefono: telefono.trim(),
       rol,
       estado,
     };
@@ -204,6 +213,7 @@ function UsersPage() {
               <tr>
                 <th className="px-5 py-3.5">Usuario</th>
                 <th className="px-5 py-3.5">Correo</th>
+                <th className="px-5 py-3.5">WhatsApp / Teléfono</th>
                 <th className="px-5 py-3.5">Rol</th>
                 <th className="px-5 py-3.5">Estado</th>
                 <th className="px-5 py-3.5">Creado</th>
@@ -213,13 +223,13 @@ function UsersPage() {
             <tbody className="divide-y">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="p-8 text-center text-muted-foreground">
                     Cargando usuarios desde Google Sheets...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="p-8 text-center text-muted-foreground">
                     No se encontraron usuarios registrados.
                   </td>
                 </tr>
@@ -232,6 +242,7 @@ function UsersPage() {
                     .join("")
                     .toUpperCase();
                   const isCurrent = u.id === currentUser?.id;
+                  const displayPhone = u.telefono || (u.rol === "ADMIN" ? DEFAULT_ADMIN_PHONE : "");
 
                   return (
                     <tr key={u.id} className="hover:bg-muted/30 transition-colors">
@@ -254,6 +265,26 @@ function UsersPage() {
                       </td>
                       <td className="px-5 py-3.5 text-muted-foreground font-mono text-xs">
                         {u.email}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {displayPhone ? (
+                          <a
+                            href={`https://wa.me/${cleanWhatsAppNumber(displayPhone)}?text=${encodeURIComponent(
+                              `Hola ${u.nombre}, prueba de conexión de WhatsApp con CRM Comercial JOMA.`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-600 hover:bg-emerald-500/20 dark:text-emerald-400 transition-colors"
+                            title="Probar o enviar WhatsApp directo"
+                          >
+                            <MessageCircle className="size-3 text-emerald-500" />
+                            {displayPhone}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/60 italic flex items-center gap-1">
+                            <MessageCircle className="size-3 text-muted-foreground/40" /> Sin WhatsApp
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-3.5">
                         <span
@@ -387,7 +418,7 @@ function UsersPage() {
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t text-xs">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span
                       className={cn(
                         "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold",
@@ -409,6 +440,17 @@ function UsersPage() {
                     >
                       {u.estado}
                     </span>
+                    {(u.telefono || (u.rol === "ADMIN" ? DEFAULT_ADMIN_PHONE : "")) && (
+                      <a
+                        href={`https://wa.me/${cleanWhatsAppNumber(u.telefono || DEFAULT_ADMIN_PHONE)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600"
+                      >
+                        <MessageCircle className="size-2.5 text-emerald-500" />
+                        {u.telefono || (u.rol === "ADMIN" ? DEFAULT_ADMIN_PHONE : "")}
+                      </a>
+                    )}
                   </div>
                   <span className="text-[11px] text-muted-foreground">
                     {u.fechaCreacion || "—"}
@@ -459,6 +501,27 @@ function UsersPage() {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="user-phone">Teléfono WhatsApp</Label>
+                  <span className="text-[11px] text-muted-foreground">Para alertas automáticas</span>
+                </div>
+                <div className="relative">
+                  <MessageCircle className="absolute left-3 top-2.5 size-4 text-emerald-500" />
+                  <Input
+                    id="user-phone"
+                    type="tel"
+                    value={telefono}
+                    onChange={(e) => setTelefono(e.target.value)}
+                    placeholder="+57 3507056186"
+                    className="pl-9"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Número con código de país (+57 para Colombia) donde llegarán los recordatorios de sus clientes.
+                </p>
               </div>
 
               <div className="space-y-1.5">

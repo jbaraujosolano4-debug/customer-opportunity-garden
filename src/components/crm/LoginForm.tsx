@@ -9,6 +9,7 @@ import {
   Lock,
   LogIn,
   Mail,
+  MessageCircle,
   ShieldAlert,
   ShieldCheck,
   Timer,
@@ -39,6 +40,7 @@ export function LoginForm() {
   // Campos del formulario
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -199,7 +201,7 @@ export function LoginForm() {
 
     setSubmitting(true);
     try {
-      const ok = await register(cleanNombre, cleanEmail, password);
+      const ok = await register(cleanNombre, cleanEmail, password, telefono.trim());
       if (ok) {
         if (typeof window !== "undefined") {
           localStorage.removeItem(getStorageKey(cleanEmail));
@@ -448,6 +450,24 @@ export function LoginForm() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="register-phone">Teléfono WhatsApp</Label>
+                  <span className="text-[11px] text-muted-foreground">Alertas de clientes</span>
+                </div>
+                <div className="relative">
+                  <MessageCircle className="absolute left-3 top-2.5 size-4 text-emerald-500" />
+                  <Input
+                    id="register-phone"
+                    type="tel"
+                    placeholder="+57 3507056186"
+                    className="pl-9"
+                    value={telefono}
+                    onChange={(e) => setTelefono(e.target.value)}
                   />
                 </div>
               </div>

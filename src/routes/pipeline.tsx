@@ -47,7 +47,7 @@ function PipelinePage() {
       await save.mutateAsync({ ...record, estado: stageValue, ultimaGestion: today });
       toast.success(`${record.cliente} → ${stageInfo(stageValue).label}`);
     } catch (err) {
-      toast.error("No se pudo mover", { description: err instanceof Error ? err.message : undefined });
+      toast.error("No se pudo mover", { description: err instanceof Error ? err.message : undefined, duration: 8000 });
     }
   };
 

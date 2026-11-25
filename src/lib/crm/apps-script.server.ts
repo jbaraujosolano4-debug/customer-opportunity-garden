@@ -10,6 +10,7 @@ type ScriptResponse = {
   id?: unknown;
   user?: unknown;
   users?: unknown[];
+  result?: unknown;
 };
 
 async function readJson(res: Response): Promise<ScriptResponse> {
@@ -25,7 +26,20 @@ async function readJson(res: Response): Promise<ScriptResponse> {
       'Apps Script no devolvió datos válidos. Revisa que la implementación sea "Aplicación web" con acceso para "Cualquier persona".',
     );
   }
-  if (!json.ok) throw new Error(json.error || "Apps Script devolvió un error.");
+  if (!json.ok) {
+    const err = json.error || "Apps Script devolvió un error.";
+    if (
+      err.toLowerCase().includes("permiso") ||
+      err.toLowerCase().includes("permission") ||
+      err.toLowerCase().includes("documento solicitado") ||
+      err.toLowerCase().includes("requested document")
+    ) {
+      throw new Error(
+        "Permiso denegado en Google Sheets: En Apps Script, ve a Implementar > Gestionar implementaciones > Editar, y asegúrate de que 'Ejecutar como' esté configurado en 'Yo' (tu cuenta) y acceso en 'Cualquier persona'.",
+      );
+    }
+    throw new Error(err);
+  }
   return json;
 }
 
@@ -107,8 +121,36 @@ export async function scriptResetPassword(
     id: found.id,
     nombre: found.nombre,
     email: found.email,
+    telefono: found.telefono || "",
     password: newPassword,
     rol: found.rol,
     estado: found.estado,
   });
+}
+
+export type WhatsAppAlertItem = {
+  advisor: string;
+  phone: string;
+  clientsCount: number;
+  status: string;
+  messagePreview: string;
+};
+
+export type WhatsAppAlertResponse = {
+  totalScheduled: number;
+  date: string;
+  results: WhatsAppAlertItem[];
+};
+
+export async function scriptSendWhatsAppAlerts(
+  url: string,
+  options: Record<string, unknown> = {},
+): Promise<WhatsAppAlertResponse> {
+  const json = await scriptPost(url, { action: "sendWhatsAppAlerts", options });
+  return json.result as WhatsAppAlertResponse;
+}
+
+export async function scriptSetupWhatsAppTrigger(url: string): Promise<string> {
+  const json = await scriptPost(url, { action: "setupWhatsAppTrigger" });
+  return json.result as string;
 }

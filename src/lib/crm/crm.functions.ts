@@ -2,7 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { DEMO_RECORDS } from "./demo-data";
-import { scriptDelete, scriptList, scriptSave } from "./apps-script.server";
+import {
+  scriptDelete,
+  scriptList,
+  scriptSave,
+  scriptSendWhatsAppAlerts,
+  scriptSetupWhatsAppTrigger,
+  type WhatsAppAlertResponse,
+} from "./apps-script.server";
 import type { DataMode, Opportunity, OpportunitiesPayload } from "./model";
 
 const dateField = z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/, "Fecha inválida");
@@ -77,3 +84,46 @@ export const deleteOpportunity = createServerFn({ method: "POST" })
       throw new Error(message(error));
     }
   });
+
+export const sendWhatsAppAlertsServerFn = createServerFn({ method: "POST" })
+  .validator((data?: unknown) => (data && typeof data === "object" ? data : {}))
+  .handler(async ({ data }): Promise<WhatsAppAlertResponse> => {
+    const url = scriptUrl();
+    if (!url) {
+      return {
+        totalScheduled: 0,
+        date: new Date().toISOString().slice(0, 10),
+        results: [
+          {
+            advisor: "Modo Demo",
+            phone: "+57 3507056186",
+            clientsCount: 0,
+            status: "simulado",
+            messagePreview: "Sin URL de Apps Script conectada",
+          },
+        ],
+      };
+    }
+    try {
+      return await scriptSendWhatsAppAlerts(url, data as Record<string, unknown>);
+    } catch (error) {
+      console.error("WhatsApp alerts failed:", error);
+      throw new Error(message(error));
+    }
+  });
+
+export const setupWhatsAppTriggerServerFn = createServerFn({ method: "POST" }).handler(
+  async (): Promise<{ message: string }> => {
+    const url = scriptUrl();
+    if (!url) {
+      return { message: "Modo demostración: configura Apps Script para activar el disparador diario." };
+    }
+    try {
+      const msg = await scriptSetupWhatsAppTrigger(url);
+      return { message: msg };
+    } catch (error) {
+      console.error("Setup WhatsApp trigger failed:", error);
+      throw new Error(message(error));
+    }
+  },
+);

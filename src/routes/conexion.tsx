@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Check, CheckCircle2, Copy, FlaskConical, RefreshCw, XCircle } from "lucide-react";
+import { Check, CheckCircle2, Copy, FlaskConical, MessageCircle, RefreshCw, Send, Sparkles, XCircle } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/crm/PageHeader";
 import { cn } from "@/lib/utils";
 import { APPS_SCRIPT_CODE } from "@/lib/crm/apps-script-code";
 import { opportunitiesQuery } from "@/lib/crm/queries";
+import { createWhatsAppUrl, DEFAULT_ADMIN_PHONE } from "@/lib/crm/whatsapp";
 
 export const Route = createFileRoute("/conexion")({
   head: () => ({
@@ -71,7 +72,7 @@ function ConnectionPage() {
         <Step n={2} title="Pega este código y guarda">
           <p>
             Lee las columnas por su nombre, así que el orden no importa. Si falta alguna (NIT, Ciudad, Canal, Categoría, Próximo
-            contacto…) la crea al final de la hoja.
+            contacto, Pares, Teléfono…) la crea al final de la hoja.
           </p>
           <div className="relative mt-3 overflow-hidden rounded-xl border bg-foreground">
             <Button size="sm" variant="secondary" onClick={copy} className="absolute right-2 top-2 h-8">
@@ -93,9 +94,26 @@ function ConnectionPage() {
             <li>Pulsa Implementar y autoriza el acceso con tu cuenta de Google.</li>
           </ul>
         </Step>
-        <Step n={4} title="Comparte la URL en el chat">
-          Copia la <b>URL de la aplicación web</b> (termina en <code className="rounded bg-secondary px-1">/exec</code>) y envíala en
-          el chat de Lovable. Se guardará de forma privada y el CRM empezará a usar tu hoja.
+        <Step n={4} title="Conexión de WhatsApp y Alertas Automáticas">
+          <div className="space-y-2">
+            <p>
+              El sistema incluye un módulo automatizado que envía alertas de clientes programados al WhatsApp de cada asesor y el consolidado general al Administrador.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <a
+                href={createWhatsAppUrl(
+                  DEFAULT_ADMIN_PHONE,
+                  "¡Hola Administrador! Prueba de conexión exitosa con el sistema de alertas de CRM Comercial JOMA.",
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition-colors"
+              >
+                <MessageCircle className="size-3.5" />
+                <span>Probar WhatsApp del Administrador ({DEFAULT_ADMIN_PHONE})</span>
+              </a>
+            </div>
+          </div>
         </Step>
       </ol>
 
